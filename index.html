@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>AUTO-EDITOR · CYMATIC ENGINE v24</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#000; }
+  body { font-family:'Courier New',monospace; color:#d8e8ff; user-select:none; }
+  canvas { display:block; }
+
+  /* ===== INTRO ===== */
+  #intro {
+    position:fixed; inset:0; z-index:1000; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: radial-gradient(circle at center, #0a0a18 0%, #000 75%);
+    transition: opacity 1s; text-align:center; padding:24px;
+  }
+  #intro.hide { opacity:0; pointer-events:none; }
+  #intro h1 {
+    font-size: clamp(26px, 6vw, 60px); letter-spacing:14px; font-weight:bold;
+    background: linear-gradient(90deg,#00e0ff,#7a5cff,#ff00e0,#ffcc44,#00e0ff);
+    background-size:400% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: shimmer 6s linear infinite; margin-bottom:12px;
+  }
+  @keyframes shimmer { to { background-position:400% 0; } }
+  #intro .sub { font-size:11px; letter-spacing:8px; opacity:.5; margin-bottom:60px; }
+  #intro .box {
+    border:1px solid #00e0ff44; border-radius:8px; padding:30px 56px;
+    background: #00e0ff08; font-size:12px; letter-spacing:4px; transition:all .4s;
+    backdrop-filter: blur(12px);
+  }
+  #intro .box:hover { border-color:#00e0ff; background:#00e0ff12; transform:translateY(-3px); }
+  #intro .features {
+    margin-top:50px; font-size:10px; letter-spacing:2.5px; opacity:.55;
+    line-height:2.4; max-width:520px;
+  }
+  #intro .features b { color:#00e0ff; }
+
+  /* ===== HUD ===== */
+  #hud { position:fixed; inset:0; pointer-events:none; padding:16px; z-index:10;
+         display:flex; flex-direction:column; justify-content:space-between; }
+  .row { display:flex; justify-content:space-between; align-items:flex-start; }
+  .brand { font-size:14px; font-weight:bold; letter-spacing:4px; color:#00e0ff;
+           text-shadow:0 0 20px #00e0ffaa; }
+  .brand span { color:#ff00e0; }
+  .stats { text-align:right; font-size:9px; line-height:2; letter-spacing:1.5px;
+           opacity:.85; color:#aab8cc; }
+  .stats b { color:#00ff88; }
+
+  #progress {
+    position:fixed; bottom:0; left:0; right:0; height:3px;
+    background:#ffffff10; z-index:20;
+  }
+  #progress-fill {
+    height:100%; width:0%;
+    background: linear-gradient(90deg,#00e0ff,#7a5cff,#ff00e0,#ffcc44);
+  }
+
+  #rec-status {
+    position:fixed; top:16px; left:50%; transform:translateX(-50%);
+    font-size:10px; letter-spacing:5px; color:#ff2244;
+    text-shadow: 0 0 20px #ff2244; z-index:15; pointer-events:none;
+    display:flex; align-items:center; gap:8px;
+    opacity:0; transition:opacity 0.4s;
+  }
+  #rec-status.show { opacity:1; }
+  #rec-status .dot { width:8px; height:8px; background:#ff2244; border-radius:50%;
+    animation: blink 1s infinite; box-shadow: 0 0 12px #ff2244; }
+  @keyframes blink { 50% { opacity:.2; } }
+
+  /* ===== TITLE CARD ===== */
+  #title-card {
+    position:fixed; inset:0; z-index:12; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    opacity:0; transition: opacity 0.6s;
+  }
+  #title-card.show { opacity:1; }
+  #title-card .main {
+    font-size: clamp(24px, 6vw, 56px); letter-spacing:14px; font-weight:bold;
+    color:#fff; text-shadow: 0 0 40px #00e0ff, 0 0 80px #00e0ffaa;
+    text-align:center; padding:0 20px;
+  }
+  #title-card .sub {
+    font-size: clamp(9px, 1.5vw, 13px); letter-spacing:8px;
+    color:#00e0ff; margin-top:16px; opacity:.85;
+  }
+
+  /* ===== SCENE TAG ===== */
+  #scene-tag {
+    position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+    font-size:9px; letter-spacing:6px; color:#aab8cc; opacity:.6;
+    z-index:10; pointer-events:none; text-align:center;
+  }
+  #scene-tag b { color:#00e0ff; }
+
+  /* ===== FINAL ===== */
+  #done {
+    position:fixed; inset:0; z-index:500;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:#000; opacity:0; pointer-events:none; transition: opacity 1.2s;
+    text-align:center; padding:24px;
+  }
+  #done.show { opacity:1; pointer-events:auto; }
+  #done h2 {
+    font-size: clamp(28px, 6vw, 52px); letter-spacing:14px; color:#fff;
+    text-shadow: 0 0 40px #00e0ffaa; margin-bottom:20px;
+  }
+  #done p { font-size:11px; letter-spacing:4px; color:#aab8cc; margin-bottom:50px; }
+  #done .btn {
+    background:transparent; border:1px solid #00e0ff; color:#00e0ff;
+    padding:14px 32px; font-family:inherit; font-size:11px;
+    letter-spacing:4px; cursor:pointer; transition: all .4s;
+  }
+  #done .btn:hover { background:#00e0ff22; box-shadow: 0 0 40px #00e0ff44; }
+
+  #toast {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(.95);
+    background:#08080eee; border:1px solid #00e0ff; color:#fff;
+    padding:16px 32px; font-size:11px; letter-spacing:4px;
+    z-index:100; opacity:0; transition: all .4s;
+    pointer-events:none; text-align:center; text-transform:uppercase;
+  }
+  #toast.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <h1>AUTO-EDITOR</h1>
+  <div class="sub">CYMATIC ENGINE · v24</div>
+  <div class="box">◈ SUELTA UN MP3 AQUÍ ◈</div>
+  <div class="features">
+    <b>▸ DETECCIÓN DE BPM Y FRASES MUSICALES</b><br>
+    <b>▸ CORTES SINCRONIZADOS AL RITMO</b><br>
+    <b>▸ 6 ESCENAS 3D PROCEDURALES</b><br>
+    <b>▸ 5 TRANSICIONES CINEMATOGRÁFICAS</b><br>
+    <b>▸ TÍTULOS ANIMADOS AUTOMÁTICOS</b><br>
+    <b>▸ COLOR GRADING QUE CAMBIA POR ACTO</b><br>
+    <b>▸ VIDEO DESCARGADO AUTOMÁTICAMENTE</b>
+  </div>
+</div>
+
+<div id="hud">
+  <div class="row">
+    <div class="brand">AUTO<span>·</span>EDITOR</div>
+    <div class="stats">
+      <div><span id="fps">--</span> FPS</div>
+      <div>BPM <b id="bpm">--</b> · BEATS <b id="beats">0</b></div>
+      <div>SCENE <b id="scene-num">01</b>/06 · ACT <b id="act">I</b></div>
+      <div><span id="tcur">0:00</span> / <span id="ttot">0:00</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="rec-status"><span class="dot"></span>GRABANDO</div>
+
+<div id="title-card">
+  <div class="main" id="tc-main"></div>
+  <div class="sub" id="tc-sub"></div>
+</div>
+
+<div id="scene-tag">ESCENA <b id="scene-name">MERKABA</b></div>
+
+<div id="progress"><div id="progress-fill"></div></div>
+
+<div id="done">
+  <h2>✦ COMPLETADO ✦</h2>
+  <p>EL VIDEO HA SIDO DESCARGADO</p>
+  <button class="btn" id="btn-restart">↺ CREAR OTRO</button>
+</div>
+
+<div id="toast"></div>
+
+<canvas id="canvas"></canvas>
+<input type="file" id="fileinput" accept="audio/*" style="display:none" />
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+/* ============================================================
+   CONFIGURACIÓN
+   ============================================================ */
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const Q = {
+  RATIO:    IS_MOBILE ? 1 : 1.5,
+  SPARKS:   IS_MOBILE ? 600 : 1800,
+  STARS:    IS_MOBILE ? 500 : 1500,
+  PARTICLES:IS_MOBILE ? 400 : 1200,
+};
+
+/* ============================================================
+   RENDERER + ESCENA + CÁMARA
+   ============================================================ */
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:!IS_MOBILE, preserveDrawingBuffer:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, Q.RATIO));
+renderer.setSize(innerWidth, innerHeight);
+renderer.setClearColor(0x000000, 1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000000, 0.015);
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 900);
+
+/* ============================================================
+   ENVIRONMENT MAP
+   ============================================================ */
+function makeEnvTexture(){
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 256;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0,0,0,256);
+  g.addColorStop(0, '#050510');
+  g.addColorStop(0.35,'#0a2050');
+  g.addColorStop(0.5, '#5a3a8a');
+  g.addColorStop(0.65,'#00a0d0');
+  g.addColorStop(1, '#000000');
+  ctx.fillStyle = g; ctx.fillRect(0,0,512,256);
+  for (let i=0;i<20;i++){
+    const x = Math.random()*512, y = Math.random()*256, r = 10+Math.random()*50;
+    const rg = ctx.createRadialGradient(x,y,0,x,y,r);
+    rg.addColorStop(0, 'rgba(255,220,150,'+(0.3+Math.random()*0.5)+')');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(x-r,y-r,r*2,r*2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envMap = pmrem.fromEquirectangular(makeEnvTexture()).texture;
+scene.environment = envMap;
+
+/* ============================================================
+   POST-PROCESO
+   ============================================================ */
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(Math.min(devicePixelRatio, Q.RATIO));
+composer.setSize(innerWidth, innerHeight);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.7, 0.35);
+composer.addPass(bloom);
+
+/* ============================================================
+   🤫 SECRETO #1 · SHADER MAESTRO
+   Color grading (por acto) + aberración + grano + vignette
+   + glitch + zoom + flash para transiciones + letterbox
+   ============================================================ */
+const MasterShader = {
+  uniforms: {
+    tDiffuse:    { value: null },
+    uTime:       { value: 0 },
+    uResolution: { value: new THREE.Vector2(innerWidth, innerHeight) },
+    uFade:       { value: 0 },
+    uGlitch:     { value: 0 },      // 0 = sin glitch, 1 = máximo
+    uFlash:      { value: 0 },      // blanco súbito
+    uZoom:       { value: 1.0 },    // zoom óptico
+    uLetterbox:  { value: 0.11 },   // barras cine
+    uGrade:      { value: 0.5 },    // 0 = teal, 1 = orange
+    uSaturation: { value: 1.15 },
+    uContrast:   { value: 1.15 },
+    uGrain:      { value: 0.05 },
+    uPulse:      { value: 0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime, uFade, uGlitch, uFlash, uZoom, uLetterbox;
+    uniform float uGrade, uSaturation, uContrast, uGrain, uPulse;
+    uniform vec2 uResolution;
+    varying vec2 vUv;
+
+    float rand(vec2 c){ return fract(sin(dot(c, vec2(12.9898, 78.233)))*43758.5453); }
+
+    vec3 colorGrade(vec3 col, float grade){
+      float lum = dot(col, vec3(0.299, 0.587, 0.114));
+      vec3 teal   = vec3(0.08, 0.30, 0.42);
+      vec3 orange = vec3(0.60, 0.38, 0.15);
+      vec3 shadowTint = mix(teal, orange, grade);
+      vec3 highlightTint = vec3(1.05, 0.98, 0.88);
+      vec3 tinted = mix(col + shadowTint * (1.0 - lum) * 0.30,
+                        col * highlightTint,
+                        smoothstep(0.4, 0.9, lum));
+      return tinted;
+    }
+
+    void main(){
+      vec2 uv = vUv;
+      vec2 center = vec2(0.5);
+      vec2 dir = uv - center;
+
+      // ZOOM para transiciones
+      uv = center + dir / uZoom;
+
+      // GLITCH: desplazamiento horizontal por bandas aleatorias
+      if (uGlitch > 0.01) {
+        float band = floor(uv.y * 30.0);
+        float shift = (rand(vec2(band, floor(uTime*20.0))) - 0.5) * uGlitch * 0.15;
+        uv.x += shift;
+        // RGB split más agresivo
+        float rShift = uGlitch * 0.03;
+        float r = texture2D(tDiffuse, uv + vec2(rShift, 0.0)).r;
+        float g = texture2D(tDiffuse, uv).g;
+        float b = texture2D(tDiffuse, uv - vec2(rShift, 0.0)).b;
+        vec3 col = vec3(r, g, b);
+        // Scanlines del glitch
+        col += step(0.97, rand(vec2(uv.y, uTime*50.0))) * 0.4;
+        col = colorGrade(col, uGrade);
+        float lum = dot(col, vec3(0.299, 0.587, 0.114));
+        col = mix(vec3(lum), col, uSaturation);
+        col = (col - 0.5) * uContrast + 0.5;
+        col *= (1.0 - smoothstep(0.35, 1.1, length(uv - 0.5)) * 1.05);
+        col *= (1.0 - uFade);
+        if (uv.y < uLetterbox || uv.y > 1.0 - uLetterbox) col = vec3(0.0);
+        gl_FragColor = vec4(col, 1.0);
+        return;
+      }
+
+      // Aberración cromática normal
+      float ca = 0.0008 + uPulse * 0.004;
+      float r = texture2D(tDiffuse, uv + dir * ca).r;
+      float g = texture2D(tDiffuse, uv).g;
+      float b = texture2D(tDiffuse, uv - dir * ca).b;
+      vec3 col = vec3(r, g, b);
+
+      // Color grading por acto
+      col = colorGrade(col, uGrade);
+
+      // Saturación
+      float lum = dot(col, vec3(0.299, 0.587, 0.114));
+      col = mix(vec3(lum), col, uSaturation);
+
+      // Contraste fílmico
+      col = (col - 0.5) * uContrast + 0.5;
+
+      // Vignette
+      col *= 1.0 - smoothstep(0.35, 1.1, length(uv - center) * uZoom) * 1.05;
+
+      // Grano fílmico
+      float grain = rand(uv * uResolution + uTime * 80.0) - 0.5;
+      col += grain * (uGrain + uPulse * 0.04);
+
+      // Scanlines CRT sutiles
+      col += sin(uv.y * uResolution.y * 0.8 + uTime) * 0.005;
+
+      // FLASH blanco
+      col = mix(col, vec3(1.0), uFlash);
+
+      // Fade to black
+      col *= (1.0 - uFade);
+
+      // Letterbox
+      if (uv.y < uLetterbox || uv.y > 1.0 - uLetterbox) col = vec3(0.0);
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `
+};
+const masterPass = new ShaderPass(MasterShader);
+masterPass.renderToScreen = true;
+composer.addPass(masterPass);
+
+/* ============================================================
+   🤫 SECRETO #2 · SISTEMA DE ESCENAS 3D
+   Cada escena tiene su propio grupo de objetos. Solo una
+   está visible a la vez. Cambiar de escena = cut de video.
+   ============================================================ */
+const scenesRoot = new THREE.Group();
+scene.add(scenesRoot);
+
+/* ---------- ESCENA 1 · MERKABA ---------- */
+const sceneMerkaba = new THREE.Group();
+scenesRoot.add(sceneMerkaba);
+
+const crystalMat = new THREE.MeshPhysicalMaterial({
+  color: 0xffe0a0, metalness: 0.7, roughness: 0.08,
+  iridescence: 0.9, iridescenceIOR: 1.35,
+  clearcoat: 1.0, clearcoatRoughness: 0.05,
+  envMap: envMap, envMapIntensity: 2.0,
+  transparent: true, opacity: 0.95, side: THREE.DoubleSide,
+});
+
+const tetraUpGeom = new THREE.TetrahedronGeometry(3.6, 0);
+const tetraUp = new THREE.Mesh(tetraUpGeom, crystalMat);
+sceneMerkaba.add(tetraUp);
+
+const tetraDownGeom = new THREE.TetrahedronGeometry(3.6, 0);
+const tetraDown = new THREE.Mesh(tetraDownGeom, crystalMat);
+tetraDown.rotation.z = Math.PI;
+sceneMerkaba.add(tetraDown);
+
+const edgesUp = new THREE.LineSegments(
+  new THREE.EdgesGeometry(tetraUpGeom),
+  new THREE.LineBasicMaterial({ color: 0xffcc44, transparent:true, opacity:0.95, blending: THREE.AdditiveBlending })
+);
+sceneMerkaba.add(edgesUp);
+const edgesDown = new THREE.LineSegments(
+  new THREE.EdgesGeometry(tetraDownGeom),
+  new THREE.LineBasicMaterial({ color: 0xffcc44, transparent:true, opacity:0.95, blending: THREE.AdditiveBlending })
+);
+edgesDown.rotation.z = Math.PI;
+sceneMerkaba.add(edgesDown);
+
+const merkabaGroup = new THREE.Group();
+merkabaGroup.position.y = 3.5;
+merkabaGroup.add(tetraUp, tetraDown, edgesUp, edgesDown);
+sceneMerkaba.add(merkabaGroup);
+
+// Flor de la Vida (solo en escena Merkaba)
+function makeFlowerOfLife(){
+  const size = 1024;
+  const c = document.createElement('canvas');
+  c.width = size; c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.strokeStyle = '#00d0ff'; ctx.lineWidth = 3;
+  ctx.shadowColor = '#00d0ff'; ctx.shadowBlur = 22;
+  const cx=size/2, cy=size/2, R=70;
+  const centers = [[cx,cy]];
+  for (let i=0;i<6;i++){ const a=(i/6)*Math.PI*2-Math.PI/2; centers.push([cx+Math.cos(a)*R*2, cy+Math.sin(a)*R*2]); }
+  for (let i=0;i<12;i++){ const a=(i/12)*Math.PI*2-Math.PI/2; centers.push([cx+Math.cos(a)*R*4, cy+Math.sin(a)*R*4]); }
+  for (let i=0;i<18;i++){ const a=(i/18)*Math.PI*2-Math.PI/2; centers.push([cx+Math.cos(a)*R*6, cy+Math.sin(a)*R*6]); }
+  centers.forEach(([x,y])=>{ ctx.beginPath(); ctx.arc(x,y,R*2,0,Math.PI*2); ctx.stroke(); });
+  ctx.beginPath(); ctx.arc(cx,cy,R*7.5,0,Math.PI*2); ctx.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const flowerTex = makeFlowerOfLife();
+const flowerMat = new THREE.MeshBasicMaterial({
+  map: flowerTex, transparent:true, opacity:0.8,
+  blending: THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide,
+});
+const flowerPlane = new THREE.Mesh(new THREE.PlaneGeometry(26, 26), flowerMat);
+flowerPlane.position.set(0, 6.5, -9);
+sceneMerkaba.add(flowerPlane);
+
+// Plataforma dorada
+const platform = new THREE.Group();
+sceneMerkaba.add(platform);
+const goldRingMat = new THREE.MeshBasicMaterial({
+  color: 0xffcc44, transparent:true, opacity:0.75,
+  blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+});
+const ringOuter = new THREE.Mesh(new THREE.RingGeometry(11.5, 12, 128), goldRingMat);
+ringOuter.rotation.x = -Math.PI/2; platform.add(ringOuter);
+const ringMid = new THREE.Mesh(new THREE.RingGeometry(8.5, 8.7, 128), goldRingMat.clone());
+ringMid.rotation.x = -Math.PI/2; ringMid.material.opacity = 0.6; platform.add(ringMid);
+const ringInner = new THREE.Mesh(new THREE.RingGeometry(5.5, 5.65, 128), goldRingMat.clone());
+ringInner.rotation.x = -Math.PI/2; ringInner.material.opacity = 0.45; platform.add(ringInner);
+
+/* ---------- ESCENA 2 · CUÁNTICA (ondas 5D) ---------- */
+const sceneQuantum = new THREE.Group();
+scenesRoot.add(sceneQuantum);
+
+const WAVE_N = IS_MOBILE ? 250 : 450;
+const waveColors = [0x00e0ff, 0xff00e0, 0x00ff88, 0xffaa00, 0x7a5cff, 0x00d0ff, 0xff4466];
+const waves = [];
+for (let w=0; w<7; w++){
+  const pos = new Float32Array(WAVE_N*3);
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.LineBasicMaterial({
+    color: waveColors[w], transparent:true,
+    opacity: w===0 ? 1.0 : 0.4,
+    blending: THREE.AdditiveBlending, depthWrite:false,
+  });
+  const line = new THREE.Line(geom, mat);
+  sceneQuantum.add(line);
+  waves.push({ geom, mat, pos, freq: 0.5+Math.random()*1.2, amp: 0.8+Math.random()*1.6,
+               phase: Math.random()*Math.PI*2, speed: 0.5+Math.random()*1.0 });
+}
+// Rejilla cuántica
+const quantumGrid = new THREE.GridHelper(60, 60, 0x00e0ff, 0x001a33);
+quantumGrid.material.transparent = true; quantumGrid.material.opacity = 0.25;
+sceneQuantum.add(quantumGrid);
+
+/* ---------- ESCENA 3 · PARTÍCULAS ---------- */
+const sceneParticles = new THREE.Group();
+scenesRoot.add(sceneParticles);
+
+const SPARK_N = Q.SPARKS;
+const sparkPos = new Float32Array(SPARK_N*3);
+const sparkVel = new Float32Array(SPARK_N*3);
+const sparkLife = new Float32Array(SPARK_N);
+const sparkCol = new Float32Array(SPARK_N*3);
+const sparkGeom = new THREE.BufferGeometry();
+sparkGeom.setAttribute('position', new THREE.BufferAttribute(sparkPos,3));
+sparkGeom.setAttribute('color',    new THREE.BufferAttribute(sparkCol,3));
+const sparkMat = new THREE.PointsMaterial({
+  size:0.15, vertexColors:true, transparent:true, opacity:0.95,
+  blending: THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true,
+});
+const sparks = new THREE.Points(sparkGeom, sparkMat);
+sceneParticles.add(sparks);
+// Inicializar todas dormidas
+for (let i=0;i<SPARK_N;i++){ sparkPos[i*3]=9999; sparkPos[i*3+1]=9999; sparkPos[i*3+2]=9999; }
+
+function emitExplosion(cx, cy, cz, hue, count){
+  let emitted = 0;
+  for (let i=0;i<SPARK_N && emitted<count;i++){
+    if (sparkLife[i] <= 0){
+      sparkPos[i*3]=cx; sparkPos[i*3+1]=cy; sparkPos[i*3+2]=cz;
+      const th = Math.random()*Math.PI*2;
+      const ph = Math.acos(2*Math.random()-1);
+      const speed = 2+Math.random()*6;
+      sparkVel[i*3]   = Math.sin(ph)*Math.cos(th)*speed;
+      sparkVel[i*3+1] = Math.cos(ph)*speed;
+      sparkVel[i*3+2] = Math.sin(ph)*Math.sin(th)*speed;
+      sparkLife[i] = 1.5+Math.random()*2;
+      const c = new THREE.Color().setHSL(hue, 1, 0.6);
+      sparkCol[i*3]=c.r; sparkCol[i*3+1]=c.g; sparkCol[i*3+2]=c.b;
+      emitted++;
+    }
+  }
+}
+
+/* ---------- ESCENA 4 · TÚNEL ---------- */
+const sceneTunnel = new THREE.Group();
+scenesRoot.add(sceneTunnel);
+
+const tunnelRings = [];
+const TUNNEL_RINGS = 30;
+for (let i=0;i<TUNNEL_RINGS;i++){
+  const r = 4 + Math.random()*2;
+  const ringGeom = new THREE.TorusGeometry(r, 0.06, 8, 40);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x00e0ff, transparent:true, opacity:0.7,
+    blending: THREE.AdditiveBlending,
+  });
+  const ring = new THREE.Mesh(ringGeom, ringMat);
+  ring.position.z = -i*6;
+  ring.userData.baseZ = -i*6;
+  ring.userData.hueShift = Math.random();
+  sceneTunnel.add(ring);
+  tunnelRings.push(ring);
+}
+
+/* ---------- ESCENA 5 · ATRACTOR DE LORENZ ---------- */
+const sceneLorenz = new THREE.Group();
+scenesRoot.add(sceneLorenz);
+
+const LORENZ_N = IS_MOBILE ? 1200 : 2500;
+const lorenzPos = new Float32Array(LORENZ_N*3);
+const lorenzState = new Float32Array(LORENZ_N*3);
+const lorenzCol = new Float32Array(LORENZ_N*3);
+for (let i=0;i<LORENZ_N;i++){
+  lorenzState[i*3]   = (Math.random()-0.5)*30;
+  lorenzState[i*3+1] = (Math.random()-0.5)*40;
+  lorenzState[i*3+2] = 5 + Math.random()*40;
+  lorenzPos[i*3]=lorenzState[i*3];
+  lorenzPos[i*3+1]=lorenzState[i*3+2]-20;
+  lorenzPos[i*3+2]=lorenzState[i*3+1];
+  const c = new THREE.Color().setHSL(0.55+Math.random()*0.15, 1, 0.6);
+  lorenzCol[i*3]=c.r; lorenzCol[i*3+1]=c.g; lorenzCol[i*3+2]=c.b;
+}
+const lorenzGeom = new THREE.BufferGeometry();
+lorenzGeom.setAttribute('position', new THREE.BufferAttribute(lorenzPos,3));
+lorenzGeom.setAttribute('color',    new THREE.BufferAttribute(lorenzCol,3));
+const lorenzMat = new THREE.PointsMaterial({
+  size:0.1, vertexColors:true, transparent:true, opacity:0.85,
+  blending: THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true,
+});
+const lorenzPoints = new THREE.Points(lorenzGeom, lorenzMat);
+sceneLorenz.add(lorenzPoints);
+
+/* ---------- ESCENA 6 · GEOMETRÍA SAGRADA FLOTANTE ---------- */
+const sceneSacro = new THREE.Group();
+scenesRoot.add(sceneSacro);
+
+const sacroObjs = [];
+const sacroColors = [0x00e0ff, 0xffcc44, 0xff00e0, 0x00ff88, 0x7a5cff];
+for (let i=0;i<5;i++){
+  let geom;
+  switch(i){
+    case 0: geom = new THREE.IcosahedronGeometry(1.2, 0); break;
+    case 1: geom = new THREE.OctahedronGeometry(1.2, 0); break;
+    case 2: geom = new THREE.TetrahedronGeometry(1.2, 0); break;
+    case 3: geom = new THREE.TorusKnotGeometry(0.9, 0.3, 64, 12); break;
+    case 4: geom = new THREE.DodecahedronGeometry(1.2, 0); break;
+  }
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: sacroColors[i], metalness: 0.7, roughness: 0.1,
+    iridescence: 0.8, clearcoat: 1.0,
+    envMap: envMap, envMapIntensity: 2.0,
+    transparent: true, opacity: 0.9,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geom),
+    new THREE.LineBasicMaterial({ color: sacroColors[i], transparent:true, opacity:0.9, blending: THREE.AdditiveBlending })
+  );
+  const group = new THREE.Group();
+  group.add(mesh, edges);
+  const angle = (i/5) * Math.PI * 2;
+  group.position.set(Math.cos(angle)*6, 4 + Math.sin(i)*1.5, Math.sin(angle)*6);
+  group.userData = { baseAngle: angle, baseY: group.position.y, color: sacroColors[i] };
+  sceneSacro.add(group);
+  sacroObjs.push(group);
+}
+
+/* Estrellas de fondo (compartidas) */
+const starPos = new Float32Array(Q.STARS*3);
+for (let i=0;i<Q.STARS;i++){
+  const r = 120+Math.random()*300, th = Math.random()*Math.PI*2, ph = Math.acos(2*Math.random()-1);
+  starPos[i*3]   = r*Math.sin(ph)*Math.cos(th);
+  starPos[i*3+1] = r*Math.cos(ph);
+  starPos[i*3+2] = r*Math.sin(ph)*Math.sin(th);
+}
+const starGeom = new THREE.BufferGeometry();
+starGeom.setAttribute('position', new THREE.BufferAttribute(starPos,3));
+const starMat = new THREE.PointsMaterial({
+  color:0x88aaff, size:0.5, transparent:true, opacity:0.6,
+  blending:THREE.AdditiveBlending, depthWrite:false, sizeAttenuation:true,
+});
+const stars = new THREE.Points(starGeom, starMat);
+scene.add(stars);
+
+// Todas las escenas ocultas por defecto
+sceneMerkaba.visible = false;
+sceneQuantum.visible  = false;
+sceneParticles.visible= false;
+sceneTunnel.visible   = false;
+sceneLorenz.visible   = false;
+sceneSacro.visible    = false;
+
+/* ============================================================
+   🤫 SECRETO #3 · GESTOR DE ESCENAS
+   Define escenas, cámaras y grading por acto
+   ============================================================ */
+const SCENES = [
+  { name:'MERKABA',    group:sceneMerkaba,   camMode:'hero',  grade:0.35, act:'I'   },
+  { name:'QUANTUM',    group:sceneQuantum,   camMode:'orbit', grade:0.55, act:'I'   },
+  { name:'PARTICLES',  group:sceneParticles, camMode:'close', grade:0.85, act:'II'  },
+  { name:'TUNNEL',     group:sceneTunnel,    camMode:'tunnel',grade:0.45, act:'II'  },
+  { name:'LORENZ',     group:sceneLorenz,    camMode:'lorenz',grade:0.30, act:'III' },
+  { name:'SACRED',     group:sceneSacro,     camMode:'pan',   grade:0.65, act:'III' },
+];
+let sceneIdx = 0;
+let shotTime = 0;
+
+/* ============================================================
+   🤫 SECRETO #4 · TRANSICIONES CINEMATOGRÁFICAS
+   5 tipos, elegidas aleatoriamente al cambiar de escena
+   ============================================================ */
+const TRANSITIONS = ['FADE', 'GLITCH', 'FLASH', 'ZOOM_PUNCH', 'WHIP'];
+let transitionActive = false;
+let transitionType = '';
+let transitionProgress = 0;
+let transitioning = false;
+
+function triggerTransition(){
+  if (transitioning) return;
+  transitioning = true;
+  transitionType = TRANSITIONS[Math.floor(Math.random()*TRANSITIONS.length)];
+  transitionProgress = 0;
+
+  // Actualizar estado visual según tipo
+  switch(transitionType){
+    case 'FADE':
+      // fade to black + fade in
+      break;
+    case 'GLITCH':
+      masterPass.uniforms.uGlitch.value = 1.0;
+      break;
+    case 'FLASH':
+      masterPass.uniforms.uFlash.value = 1.0;
+      break;
+    case 'ZOOM_PUNCH':
+      masterPass.uniforms.uZoom.value = 1.0;
+      break;
+    case 'WHIP':
+      masterPass.uniforms.uGlitch.value = 0.4;
+      break;
+  }
+}
+
+/* ============================================================
+   TÍTULOS ANIMADOS
+   ============================================================ */
+const titleCard = document.getElementById('title-card');
+const tcMain = document.getElementById('tc-main');
+const tcSub = document.getElementById('tc-sub');
+let titleTimer;
+
+function showTitle(mainText, subText, duration = 2200){
+  tcMain.textContent = mainText;
+  tcSub.textContent = subText || '';
+  titleCard.classList.add('show');
+  clearTimeout(titleTimer);
+  titleTimer = setTimeout(()=>titleCard.classList.remove('show'), duration);
+}
+
+const SCENE_TITLES = {
+  'MERKABA':   ['MERKABA',   'GEOMETRÍA SAGRADA'],
+  'QUANTUM':   ['QUANTUM',   'SUPERPOSICIÓN 5D'],
+  'PARTICLES': ['PARTICLES', 'COLAPSO ENERGÉTICO'],
+  'TUNNEL':    ['TUNNEL',    'VIAJE HIPERESPACIAL'],
+  'LORENZ':    ['CHAOS',     'ATRACTOR DE LORENZ'],
+  'SACRED':    ['SACRED',    'POLIEDROS PRIMORDIALES'],
+};
+
+/* ============================================================
+   AUDIO
+   ============================================================ */
+let audioCtx=null, analyser=null, freqData=null, timeData=null;
+let audioEl=null, audioSrc=null, audioDest=null;
+let bass=0, mid=0, high=0, energy=0, prevEnergy=0;
+let beatFlash=0, beatCount=0, lastBeatTime=0, dropFlash=0;
+
+/* Detección de BPM simple */
+let bpm = 0;
+let beatIntervals = [];
+let bpmLastUpdate = 0;
+let beatGrid = 0; // contador de beats desde el inicio
+
+/* ============================================================
+   ESTADO GLOBAL
+   ============================================================ */
+let t = 0, last = performance.now();
+let camPhase = 0;
+let fpsAcc = 0, fpsCount = 0;
+let recording = false, recorder = null, recordedChunks = [];
+let fadeValue = 0, fadeTarget = 0;
+let flashValue = 0, glitchValue = 0, zoomValue = 1.0;
+let cutPending = false;
+
+const cam = { theta:0, phi:1.25, radius:20, target: new THREE.Vector3(0,3.5,0) };
+const camGoal = { theta:0, phi:1.25, radius:20 };
+const camTgtGoal = new THREE.Vector3(0,3.5,0);
+
+/* ============================================================
+   CARGA DE MP3 → FLUJO AUTOMÁTICO
+   ============================================================ */
+const intro = document.getElementById('intro');
+const fileInput = document.getElementById('fileinput');
+const doneScreen = document.getElementById('done');
+const recStatus = document.getElementById('rec-status');
+const progressFill = document.getElementById('progress-fill');
+const tCur = document.getElementById('tcur');
+const tTot = document.getElementById('ttot');
+
+intro.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', e=>{ if(e.target.files[0]) startFlow(e.target.files[0]); });
+['dragover','dragenter'].forEach(ev=>intro.addEventListener(ev, e=>{ e.preventDefault(); }));
+intro.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f && f.type.startsWith('audio/')) startFlow(f);
+});
+
+async function startFlow(file){
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  if (audioCtx.state==='suspended') await audioCtx.resume();
+
+  audioEl = new Audio();
+  audioEl.src = URL.createObjectURL(file);
+  audioEl.crossOrigin = 'anonymous';
+
+  audioSrc = audioCtx.createMediaElementSource(audioEl);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.72;
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  timeData = new Uint8Array(analyser.fftSize);
+
+  audioSrc.connect(analyser);
+  audioDest = audioCtx.createMediaStreamDestination();
+  analyser.connect(audioCtx.destination);
+  analyser.connect(audioDest);
+
+  fadeValue = 1;
+  intro.classList.add('hide');
+
+  audioEl.addEventListener('loadedmetadata', ()=>{
+    tTot.textContent = formatTime(audioEl.duration);
+    setTimeout(()=>{
+      fadeTarget = 0;
+      audioEl.play();
+      startRecording();
+      // Mostrar primera escena
+      activateScene(0);
+    }, 500);
+  });
+
+  audioEl.addEventListener('timeupdate', ()=>{
+    const p = (audioEl.currentTime / audioEl.duration) * 100;
+    progressFill.style.width = p + '%';
+    tCur.textContent = formatTime(audioEl.currentTime);
+  });
+
+  audioEl.addEventListener('ended', ()=>{
+    fadeTarget = 1;
+    setTimeout(()=>{
+      stopRecording();
+    }, 2200);
+  });
+}
+
+function formatTime(s){
+  if (!isFinite(s)) return '0:00';
+  const m = Math.floor(s/60);
+  const ss = Math.floor(s%60);
+  return m + ':' + String(ss).padStart(2,'0');
+}
+
+/* ============================================================
+   🤫 SECRETO #5 · ANÁLISIS PROFUNDO + DETECCIÓN DE BPM
+   Detecta beats, mide intervalos entre ellos, calcula BPM
+   promedio, y crea una grilla de cortes.
+   ============================================================ */
+function analyze(){
+  if (!analyser) return;
+  analyser.getByteFrequencyData(freqData);
+  analyser.getByteTimeDomainData(timeData);
+  const n = freqData.length;
+  const bEnd = Math.floor(n*0.08), mEnd = Math.floor(n*0.45);
+  let b=0,m=0,h=0;
+  for (let i=0;i<bEnd;i++) b+=freqData[i];
+  for (let i=bEnd;i<mEnd;i++) m+=freqData[i];
+  for (let i=mEnd;i<n;i++) h+=freqData[i];
+  bass += ((b/(bEnd*255))-bass)*0.32;
+  mid  += ((m/((mEnd-bEnd)*255))-mid)*0.32;
+  high += ((h/((n-mEnd)*255))-high)*0.32;
+
+  let sum=0;
+  for (let i=0;i<timeData.length;i++){ const v=(timeData[i]-128)/128; sum+=v*v; }
+  energy = Math.sqrt(sum/timeData.length);
+
+  const now = performance.now();
+  if (energy - prevEnergy > 0.08 && now - lastBeatTime > 250){
+    // Beat detectado
+    const interval = now - lastBeatTime;
+    if (interval < 2000){
+      beatIntervals.push(interval);
+      if (beatIntervals.length > 8) beatIntervals.shift();
+    }
+    // Calcular BPM
+    if (beatIntervals.length >= 4 && now - bpmLastUpdate > 2000){
+      const avg = beatIntervals.reduce((a,b)=>a+b,0) / beatIntervals.length;
+      bpm = Math.round(60000 / avg);
+      // Limitar a rangos razonables
+      if (bpm > 200) bpm = Math.round(bpm / 2);
+      if (bpm < 60) bpm = Math.round(bpm * 2);
+      bpmLastUpdate = now;
+      document.getElementById('bpm').textContent = bpm;
+    }
+
+    beatFlash = 1;
+    beatCount++;
+    beatGrid++;
+    lastBeatTime = now;
+
+    // Cortar escena cada 16 beats (frase musical típica)
+    if (beatGrid % 16 === 0 && audioEl && !audioEl.paused){
+      triggerTransition();
+    }
+
+    // Explosión de partículas en beats fuertes
+    if (beatGrid % 4 === 0 && energy > 0.3){
+      emitExplosion(
+        (Math.random()-0.5)*8, 2+Math.random()*6, (Math.random()-0.5)*8,
+        Math.random(), 150
+      );
+    }
+  }
+  prevEnergy = energy*0.55 + prevEnergy*0.45;
+  if (bass>0.75 && energy>0.45) dropFlash = Math.min(1.5, dropFlash+0.4);
+  dropFlash *= 0.94;
+}
+
+/* ============================================================
+   ACTIVACIÓN DE ESCENA
+   ============================================================ */
+function activateScene(idx){
+  SCENES.forEach((s, i) => { s.group.visible = (i === idx); });
+  const s = SCENES[idx];
+  masterPass.uniforms.uGrade.value = s.grade;
+  document.getElementById('scene-num').textContent = String(idx+1).padStart(2,'0');
+  document.getElementById('scene-name').textContent = s.name;
+  document.getElementById('act').textContent = s.act;
+  const [main, sub] = SCENE_TITLES[s.name];
+  showTitle(main, sub, 2400);
+  shotTime = 0;
+}
+
+function nextScene(){
+  sceneIdx = (sceneIdx + 1) % SCENES.length;
+  activateScene(sceneIdx);
+}
+
+/* ============================================================
+   UPDATERS DE CADA ESCENA
+   ============================================================ */
+function updateMerkaba(dt){
+  merkabaGroup.rotation.y += dt*(0.25 + bass*1.2);
+  merkabaGroup.rotation.x += dt*(0.1 + mid*0.8);
+  const s = 1 + bass*0.35 + dropFlash*0.25 + beatFlash*0.12;
+  merkabaGroup.scale.setScalar(s);
+  merkabaGroup.position.y = 3.5 + Math.sin(t*0.7)*0.35 + beatFlash*0.35;
+  tetraUp.rotation.y += dt*0.4;
+  tetraDown.rotation.y -= dt*0.4;
+  flowerPlane.rotation.z += 0.0012;
+  flowerMat.opacity = 0.6 + energy*0.35;
+  platform.rotation.y += 0.0015 + bass*0.004;
+  ringOuter.scale.setScalar(1 + bass*0.07 + beatFlash*0.04);
+  ringMid.scale.setScalar(1 + bass*0.05);
+  ringInner.scale.setScalar(1 + bass*0.03);
+}
+
+function updateQuantum(dt){
+  const mainY = (x) => 3 + (1.6 + bass*3.2 + dropFlash*3) * Math.sin(1.0*x + t*1.15) * (0.75 + high*0.7);
+  const mainZ = (x) => 0.9 * Math.sin(0.5*x + t*0.7 + mid*3) * (1 + bass*2);
+  waves.forEach((w, idx) => {
+    const p = w.pos;
+    const amBoost = 1 + mid*2.5 + dropFlash*2;
+    for (let i=0; i<WAVE_N; i++){
+      const x = (i/(WAVE_N-1) - 0.5) * 30;
+      const gy = 3 + (w.amp*amBoost) * Math.sin(w.freq*x + t*w.speed + w.phase) * Math.cos(0.3*x + t*0.25);
+      const gz = 1.0 * Math.sin(w.freq*0.6*x + t*0.8 + w.phase) * Math.cos(w.freq*0.25*x + t*0.4);
+      p[i*3]=x;
+      p[i*3+1]=gy;
+      p[i*3+2]=gz;
+    }
+    w.geom.attributes.position.needsUpdate = true;
+    w.mat.opacity = (idx===0 ? 1.0 : 0.35 + high*0.4);
+  });
+  quantumGrid.position.y = -0.5 + beatFlash*0.4;
+  quantumGrid.material.opacity = 0.2 + energy*0.15;
+}
+
+function updateParticles(dt){
+  const sp = sparkGeom.attributes.position.array;
+  const sc = sparkGeom.attributes.color.array;
+  for (let i=0;i<SPARK_N;i++){
+    if (sparkLife[i] > 0){
+      sparkLife[i] -= dt;
+      sparkVel[i*3+1] -= dt*4.5;
+      sparkVel[i*3]   *= 0.985;
+      sparkVel[i*3+1] *= 0.985;
+      sparkVel[i*3+2] *= 0.985;
+      sp[i*3]   += sparkVel[i*3]  *dt;
+      sp[i*3+1] += sparkVel[i*3+1]*dt;
+      sp[i*3+2] += sparkVel[i*3+2]*dt;
+      sc[i*3]   *= 0.995;
+      sc[i*3+1] *= 0.99;
+      sc[i*3+2] *= 0.99;
+      if (sparkLife[i] <= 0){
+        sp[i*3]=9999; sp[i*3+1]=9999; sp[i*3+2]=9999;
+      }
+    }
+  }
+  sparkGeom.attributes.position.needsUpdate = true;
+  sparkGeom.attributes.color.needsUpdate = true;
+  sparkMat.size = 0.12 + beatFlash*0.08;
+}
+
+function updateTunnel(dt){
+  const speed = 20 + bass*40 + dropFlash*30;
+  tunnelRings.forEach((ring, i) => {
+    ring.position.z += dt * speed;
+    if (ring.position.z > 5){
+      ring.position.z -= TUNNEL_RINGS * 6;
+    }
+    // Reaccionar al audio
+    const near = 1.0 - Math.min(1, Math.abs(ring.position.z) / 30);
+    ring.scale.setScalar(0.9 + bass*near*0.5 + beatFlash*0.1);
+    // Rotar lentamente
+    ring.rotation.z += dt * 0.3;
+    // Color
+    const hue = 0.5 + Math.sin(t*0.3 + i*0.1) * 0.15 + high*0.15;
+    ring.material.color.setHSL(hue, 1, 0.55 + beatFlash*0.2);
+  });
+}
+
+function updateLorenz(dt){
+  const sigma = 10, rho = 28, beta = 8/3;
+  const speed = (0.5 + bass*2.5 + dropFlash*3) * dt * 8;
+  const lp = lorenzGeom.attributes.position.array;
+  for (let i=0;i<LORENZ_N;i++){
+    const x = lorenzState[i*3];
+    const y = lorenzState[i*3+1];
+    const z = lorenzState[i*3+2];
+    const dx = sigma*(y-x);
+    const dy = x*(rho-z)-y;
+    const dz = x*y - beta*z;
+    lorenzState[i*3]   += dx*speed*0.005;
+    lorenzState[i*3+1] += dy*speed*0.005;
+    lorenzState[i*3+2] += dz*speed*0.005;
+    lp[i*3]   = lorenzState[i*3] * 0.5;
+    lp[i*3+1] = lorenzState[i*3+2] * 0.5 - 15;
+    lp[i*3+2] = lorenzState[i*3+1] * 0.5;
+  }
+  lorenzGeom.attributes.position.needsUpdate = true;
+  lorenzMat.size = 0.1 + beatFlash*0.12;
+  lorenzMat.opacity = 0.6 + energy*0.4;
+  lorenzPoints.rotation.y += dt*0.15;
+}
+
+function updateSacro(dt){
+  sacroObjs.forEach((g, i) => {
+    const a = g.userData.baseAngle + t * (0.15 + bass*0.4);
+    g.position.x = Math.cos(a) * 6;
+    g.position.z = Math.sin(a) * 6;
+    g.position.y = g.userData.baseY + Math.sin(t*0.8 + i)*0.6 + beatFlash*0.4;
+    g.rotation.x += dt * (0.5 + mid);
+    g.rotation.y += dt * (0.7 + high);
+    g.rotation.z += dt * 0.3;
+    g.scale.setScalar(1 + bass*0.3);
+  });
+}
+
+/* ============================================================
+   CÁMARA CINEMATOGRÁFICA POR ESCENA
+   ============================================================ */
+function updateCamera(dt){
+  const s = SCENES[sceneIdx];
+  camPhase += dt * (0.1 + bass*0.7 + dropFlash*0.8);
+  shotTime += dt;
+
+  switch(s.camMode){
+    case 'hero':
+      camGoal.theta = Math.sin(camPhase*0.4)*0.3;
+      camGoal.phi   = 1.28;
+      camGoal.radius = 20 - bass*2;
+      camTgtGoal.set(0, 3.5, 0); break;
+    case 'orbit':
+      camGoal.theta = camPhase;
+      camGoal.phi   = 1.15 + Math.sin(camPhase*0.4)*0.15;
+      camGoal.radius = 22 - bass*2;
+      camTgtGoal.set(0, 3.5, 0); break;
+    case 'close':
+      camGoal.theta = Math.sin(camPhase*0.6)*0.4;
+      camGoal.phi   = 1.3;
+      camGoal.radius = IS_MOBILE ? 14 : 11;
+      camTgtGoal.set(0, 4, 0); break;
+    case 'tunnel':
+      camGoal.theta = 0;
+      camGoal.phi   = 1.35 + Math.sin(camPhase*0.5)*0.1;
+      camGoal.radius = 1.5;   // DENTRO del túnel
+      camTgtGoal.set(0, 0, -20); break;
+    case 'lorenz':
+      camGoal.theta = camPhase*0.6;
+      camGoal.phi   = 1.2 + Math.sin(camPhase*0.5)*0.25;
+      camGoal.radius = 22 + Math.sin(camPhase*0.4)*3;
+      camTgtGoal.set(0, 0, 0); break;
+    case 'pan':
+      camGoal.theta = camPhase*0.3;
+      camGoal.phi   = 1.2;
+      camGoal.radius = 18 - bass*2;
+      camTgtGoal.set(0, 5, 0); break;
+  }
+
+  cam.theta  += (camGoal.theta  - cam.theta) * Math.min(1, dt*1.8);
+  cam.phi    += (camGoal.phi    - cam.phi)   * Math.min(1, dt*1.8);
+  cam.radius += (camGoal.radius - cam.radius)* Math.min(1, dt*1.5);
+  cam.target.lerp(camTgtGoal, Math.min(1, dt*1.2));
+  const sp = Math.sin(cam.phi);
+  camera.position.set(
+    cam.radius*sp*Math.sin(cam.theta),
+    cam.radius*Math.cos(cam.phi)+2.5,
+    cam.radius*sp*Math.cos(cam.theta)
+  );
+  camera.lookAt(cam.target);
+}
+
+/* ============================================================
+   LOOP PRINCIPAL
+   ============================================================ */
+function animate(now){
+  requestAnimationFrame(animate);
+  const dt = Math.min(0.05, (now-last)/1000);
+  last = now;
+  if (audioEl && !audioEl.paused) t += dt*1.35;
+
+  fpsAcc += dt; fpsCount++;
+  if (fpsAcc > 0.5){
+    document.getElementById('fps').textContent = Math.round(fpsCount/fpsAcc);
+    fpsAcc=0; fpsCount=0;
+  }
+
+  analyze();
+  beatFlash *= 0.88;
+
+  // Actualizar escenas (solo la activa para ahorrar)
+  switch(sceneIdx){
+    case 0: updateMerkaba(dt); break;
+    case 1: updateQuantum(dt); break;
+    case 2: updateParticles(dt); break;
+    case 3: updateTunnel(dt); break;
+    case 4: updateLorenz(dt); break;
+    case 5: updateSacro(dt); break;
+  }
+  document.getElementById('beats').textContent = beatCount;
+
+  stars.rotation.y += dt * 0.003;
+
+  // Cambio de escena por tiempo (máx 20s) si no ha cortado el beat
+  if (shotTime > 20 && !transitioning && audioEl && !audioEl.paused){
+    triggerTransition();
+  }
+
+  // Procesar transición activa
+  if (transitioning){
+    transitionProgress += dt / 0.8; // 0.8s de transición
+    const p = Math.min(1, transitionProgress);
+    if (transitionType === 'FADE'){
+      if (p < 0.5){
+        fadeValue = p * 2;
+      } else {
+        if (!transitioning._sceneChanged){
+          nextScene();
+          transitioning._sceneChanged = true;
+        }
+        fadeValue = (1 - p) * 2;
+      }
+    } else if (transitionType === 'GLITCH'){
+      glitchValue = Math.sin(p * Math.PI) * 1.0;
+      if (p > 0.5 && !transitioning._sceneChanged){
+        nextScene();
+        transitioning._sceneChanged = true;
+      }
+    } else if (transitionType === 'FLASH'){
+      flashValue = Math.sin(p * Math.PI) * 1.0;
+      if (p > 0.5 && !transitioning._sceneChanged){
+        nextScene();
+        transitioning._sceneChanged = true;
+      }
+    } else if (transitionType === 'ZOOM_PUNCH'){
+      // Zoom in fuerte, cambia, zoom out
+      if (p < 0.5){
+        zoomValue = 1.0 + p * 0.6;
+      } else {
+        if (!transitioning._sceneChanged){
+          nextScene();
+          transitioning._sceneChanged = true;
+        }
+        zoomValue = 1.0 + (1-p) * 0.6;
+      }
+    } else if (transitionType === 'WHIP'){
+      glitchValue = Math.sin(p * Math.PI) * 0.5;
+      if (p > 0.5 && !transitioning._sceneChanged){
+        nextScene();
+        transitioning._sceneChanged = true;
+      }
+    }
+    if (p >= 1){
+      transitioning = false;
+      transitionProgress = 0;
+      fadeValue = 0;
+      fadeTarget = 0;
+      glitchValue = 0;
+      flashValue = 0;
+      zoomValue = 1.0;
+      masterPass.uniforms.uGlitch.value = 0;
+      masterPass.uniforms.uFlash.value = 0;
+      masterPass.uniforms.uZoom.value = 1.0;
+      transitioning._sceneChanged = false;
+    }
+  } else {
+    fadeValue += (fadeTarget - fadeValue) * Math.min(1, dt*2.5);
+    glitchValue *= 0.85;
+    flashValue *= 0.85;
+    zoomValue += (1.0 - zoomValue) * Math.min(1, dt*3);
+  }
+
+  updateCamera(dt);
+
+  // Bloom
+  bloom.strength = 0.5 + energy*0.8 + dropFlash*0.6;
+  bloom.radius   = 0.6 + bass*0.25;
+
+  // Actualizar shader maestro
+  masterPass.uniforms.uTime.value = t;
+  masterPass.uniforms.uFade.value = fadeValue;
+  masterPass.uniforms.uGlitch.value = glitchValue;
+  masterPass.uniforms.uFlash.value = flashValue;
+  masterPass.uniforms.uZoom.value = zoomValue;
+  masterPass.uniforms.uPulse.value = beatFlash;
+
+  composer.render();
+}
+
+/* ============================================================
+   GRABACIÓN AUTOMÁTICA
+   ============================================================ */
+function pickMime(){
+  const list=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+  for (const m of list) if (MediaRecorder.isTypeSupported(m)) return m;
+  return '';
+}
+
+function startRecording(){
+  recordedChunks = [];
+  const cs = canvas.captureStream(60);
+  const at = audioDest.stream.getAudioTracks();
+  const combined = new MediaStream([...cs.getVideoTracks(), ...at]);
+  const mime = pickMime();
+  recorder = new MediaRecorder(combined, {
+    mimeType: mime,
+    videoBitsPerSecond: 8_000_000,
+    audioBitsPerSecond: 128_000,
+  });
+  recorder.ondataavailable = e => { if (e.data.size>0) recordedChunks.push(e.data); };
+  recorder.onstop = ()=>{
+    const blob = new Blob(recordedChunks, { type:mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `auto-editor-${Date.now()}.webm`;
+    a.click();
+    recording = false;
+    recStatus.classList.remove('show');
+    doneScreen.classList.add('show');
+  };
+  recorder.start(1000);
+  recording = true;
+  recStatus.classList.add('show');
+}
+
+function stopRecording(){
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+}
+
+/* ============================================================
+   REINICIO
+   ============================================================ */
+document.getElementById('btn-restart').addEventListener('click', ()=>{
+  if (audioEl){ audioEl.pause(); audioEl = null; }
+  doneScreen.classList.remove('show');
+  intro.classList.remove('hide');
+  progressFill.style.width = '0%';
+  tCur.textContent = '0:00'; tTot.textContent = '0:00';
+  sceneIdx = 0; t = 0; beatCount = 0; beatGrid = 0; bpm = 0;
+  beatIntervals = [];
+  document.getElementById('bpm').textContent = '--';
+  fadeValue = 1; fadeTarget = 0;
+});
+
+/* ============================================================
+   RESIZE + TOAST + ARRANQUE
+   ============================================================ */
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+  masterPass.uniforms.uResolution.value.set(innerWidth, innerHeight);
+});
+
+let toastTimer;
+function showToast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 2200);
+}
+
+requestAnimationFrame(animate);
+
+console.log('%c╔══════════════════════════════════════════╗','color:#00e0ff;font-weight:bold');
+console.log('%c║   AUTO-EDITOR · CYMATIC ENGINE v24       ║','color:#00e0ff;font-weight:bold');
+console.log('%c║   6 SCENES · 5 TRANSITIONS · BPM DETECT  ║','color:#ff00e0;font-weight:bold');
+console.log('%c║   KRONOS Protocol · Autoría verificable  ║','color:#00ff88;font-weight:bold');
+console.log('%c╚══════════════════════════════════════════╝','color:#00e0ff;font-weight:bold');
+</script>
+</body>
+</html>
